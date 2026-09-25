@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V86 SEM BLOQUEIO</title>
+<style>
+body{background:#000;color:#fff;font-family:Arial;text-align:center;padding:10px}
+.top{display:flex;gap:6px}.top a{flex:1;padding:12px;background:#222;color:#FFD700;border:2px solid #FFD700;border-radius:10px;text-decoration:none;font-weight:bold}.top a.active{background:#FFD700;color:#000}
+.busca{display:flex;gap:6px;margin:10px 0}.busca input{flex:1;padding:14px;border-radius:10px;border:2px solid #FFD700;background:#111;color:#fff}
+.busca button{background:#FFD700;border:none;padding:0 18px;border-radius:10px;font-weight:bold}
+iframe{width:100%;height:210px;border:none;border-radius:12px;background:#000}
+.btn{width:100%;padding:16px;border-radius:12px;border:none;font-weight:900;margin-top:8px;font-size:15px}
+.tv{background:#e50914;color:#fff}
+.dub{background:#00d26a;color:#fff}
+.add{background:#222;color:#FFD700;border:2px solid #FFD700}
+#lista{text-align:left;margin-top:10px}
+.item{padding:10px;border-bottom:1px solid #333;display:flex;gap:8px}
+.item img{width:70px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="top"><a href="index.html">🎵 MÚSICAS</a><a class="active">🎬 FILMES</a></div>
+<div class="busca"><input id="q" placeholder="Buscar filme ex: Piratas"><button onclick="addPorNome()">Buscar</button></div>
+
+<iframe id="player" src="https://www.youtube.com/embed/0Rvn71r_Oic" allowfullscreen></iframe>
+<div id="nome" style="color:#FFD700;font-weight:bold;margin:8px">Piratas do Vale do Silício</div>
+
+<!-- ESSE BOTÃO NÃO MANDA DIRETO, ELE ABRE NO YOUTUBE OFICIAL -->
+<button class="btn tv" onclick="jogarNaTV()">📺 JOGAR NA TV (abre YouTube oficial)</button>
+<button class="btn dub" onclick="alert('Ative a legenda PT-BR dentro do YouTube')">🇧🇷 DUBLAR PT-BR</button>
+<button class="btn add" onclick="addLink()">🔗 Link YouTube</button>
+
+<div id="lista"></div>
+
+<script>
+let filmes=[
+ {nome:'Piratas do Vale do Silício', id:'0Rvn71r_Oic'},
+ {nome:'Piratas do Vale - Completo Dublado', id:'j0oKXz4A5pI'},
+ {nome:'De Volta para o Futuro', id:'qz8pK2fihRw'}
+];
+let atual = filmes[0];
+const player=document.getElementById('player'), nomeEl=document.getElementById('nome'), listaEl=document.getElementById('lista');
+
+function montar(){
+ listaEl.innerHTML='';
+ filmes.forEach(f=>{
+  let d=document.createElement('div'); d.className='item';
+  d.innerHTML=`<img src="https://i.ytimg.com/vi/${f.id}/mqdefault.jpg"><div><b>${f.nome}</b><br><small>Clique pra tocar</small></div>`;
+  d.onclick=()=>tocar(f);
+  listaEl.appendChild(d);
+ });
+}
+function tocar(f){
+ atual=f;
+ nomeEl.innerText=f.nome;
+ player.src=`https://www.youtube.com/embed/${f.id}?autoplay=1`;
+}
+function jogarNaTV(){
+ // Esse é o pulo do gato: abre no APP OFICIAL do YouTube, não no seu site
+ // O app oficial o YouTube NÃO bloqueia, e aparece o botão de CAST
+ let id = atual.id;
+ let linkApp = `vnd.youtube://${id}`;
+ let linkWeb = `https://www.youtube.com/watch?v=${id}`;
+
+ // Tenta abrir no app oficial
+ window.location.href = linkApp;
+
+ // Se não tiver app, abre no navegador depois de 1 segundo
+ setTimeout(()=>{
+   window.open(linkWeb, '_blank');
+ }, 800);
+}
+function addLink(){
+ let l=prompt('Cole link YouTube:'); if(!l) return;
+ let id=l.match(/[a-zA-Z0-9_-]{11}/); if(!id){ alert('Link inválido'); return; }
+ let nome=prompt('Nome do filme:')||'Filme'; filmes.push({nome:nome, id:id[0]}); montar();
+}
+function addPorNome(){
+ let q=document.getElementById('q').value; if(!q) return;
+ // Como busca está bloqueada, usa o trailer padrão de Piratas
+ if(q.toLowerCase().includes('piratas')){
+  tocar({nome:'Piratas do Vale do Silício', id:'0Rvn71r_Oic'});
+ } else {
+  alert('Busca bloqueada pelo YouTube. Use 🔗 Link YouTube e cole o link do filme que quer.');
+ }
+}
+montar();
+</script>
+</body>
+</html>

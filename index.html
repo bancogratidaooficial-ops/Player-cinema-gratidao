@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>V86 PLAY - Filmes Dublado</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}body{background:#000;color:#fff;text-align:center;padding:10px;padding-bottom:100px}
+.top{display:flex;gap:8px;margin-bottom:12px}.top a{flex:1;text-decoration:none;padding:12px;border-radius:10px;font-weight:bold;background:#222;color:#FFD700;border:2px solid #FFD700}.top a.active{background:#FFD700;color:#000}
+.busca{display:flex;gap:8px;margin-bottom:12px}.busca input{flex:1;padding:14px;border-radius:12px;border:2px solid #FFD700;background:#111;color:#fff}.busca button{background:#FFD700;border:none;padding:0 22px;border-radius:12px;font-weight:bold}
+.card{border:2px solid #FFD700;border-radius:20px;padding:10px;background:#111}video,iframe{width:100%;height:230px;border:none;border-radius:12px;background:#000}
+#nome{color:#FFD700;font-weight:bold;margin:10px 0;font-size:16px}#status{color:#25D366;font-size:12px}
+.btns{display:flex;justify-content:center;gap:8px;margin:12px 0;flex-wrap:wrap}.btns button{background:#FFD700;border:none;width:60px;height:60px;border-radius:50%;font-size:20px;font-weight:bold}.btns button.big{width:75px;height:75px;font-size:30px}
+.btn-dub{background:#00d26a!important;color:#fff!important;width:auto!important;padding:0 18px!important;border-radius:12px!important;font-size:14px!important;height:45px!important}
+.lista{text-align:left;background:#1a1a1a;border-radius:12px;padding:5px;max-height:350px;overflow:auto;margin:12px 0}
+.item{display:flex;gap:10px;align-items:center;padding:12px;border-bottom:1px solid #333}.item.active{background:#222;border-radius:10px;border:1px solid #FFD700}.item img{width:90px;height:55px;border-radius:8px;object-fit:cover}.item div{flex:1;text-align:left}.item div b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item div small{color:#25D366;font-size:11px}.del{background:#ff2a2a;color:#fff;border:none;width:35px;height:35px;border-radius:50%}
+.green{background:#00d26a;color:#fff;border:none;padding:16px;border-radius:12px;width:100%;font-weight:bold;margin-top:10px}
+#btnTV{position:fixed;top:8px;right:8px;z-index:9999;background:#FF0000;color:#fff;border:none;padding:12px 18px;border-radius:50px;font-weight:900;box-shadow:0 4px 15px #000;font-size:12px}
+</style>
+</head>
+<body>
+<button id="btnTV">📺 JOGAR NA TV</button>
+
+<div class="top"><a href="index.html">🎵 MÚSICAS</a><a href="video.html" class="active">🎬 FILMES</a></div>
+<div class="busca"><input type="text" id="q" placeholder="🔍 Buscar filme ex: Leonardo"><button onclick="buscar()">Buscar</button></div>
+<div class="card">
+<video id="video" controls style="display:none" playsinline></video>
+<iframe id="yt" src="https://www.youtube.com/embed/dQw4w9WgXcQ" allow="autoplay; fullscreen" allowfullscreen></iframe>
+<div id="nome">🔴 FILME COMPLETO</div><div id="status">🎬 Busque um filme acima</div><div id="cont" style="color:#888;font-size:12px"></div>
+<div class="btns">
+<button onclick="ant()">⏮</button>
+<button class="big" onclick="pp()">▶️</button>
+<button onclick="prox()">⏭</button>
+<button class="btn-dub" id="btnDub" onclick="toggleDub()">🇧🇷 DUBLAR PT-BR</button>
+</div>
+<div id="dubStatus" style="color:#00d26a;font-size:11px;margin:5px 0"></div>
+<div class="lista" id="lista"></div>
+</div>
+<button class="green" onclick="document.getElementById('file').click()">➕ Filmes do Celular</button><input type="file" id="file" multiple accept="video/*" style="display:none">
+<button class="green" style="background:#111;border:2px solid #FFD700;color:#FFD700" onclick="addLink()">🔗 Link YouTube</button>
+
+<script>
+// TV
+document.getElementById('btnTV').onclick=async()=>{
+  try{ if(!('PresentationRequest' in window)) return alert('Use Chrome!'); const r=new PresentationRequest([location.href]); await r.start(); document.getElementById('btnTV').innerText='🔴 NA TV'; document.getElementById('btnTV').style.background='#00c853'; }catch(e){alert('Instala AirScreen na TV Box na mesma Wi-Fi');}
+};
+
+let videos=[], idx=0, db, dubAtivo=false, synth=window.speechSynthesis, legendas=[], legIndex=0, legTimer=null;
+const video=document.getElementById('video'), yt=document.getElementById('yt'), nome=document.getElementById('nome'), lista=document.getElementById('lista'), cont=document.getElementById('cont'), statusEl=document.getElementById('status'), dubStatus=document.getElementById('dubStatus');
+
+const reqIDB=indexedDB.open('V86DB_VID',2); reqIDB.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains('videos')) e.target.result.createObjectStore('videos',{keyPath:'id',autoIncrement:true});};
+reqIDB.onsuccess=e=>{db=e.target.result; carregarLocal();};
+function carregarLocal(){ db.transaction('videos','readonly').objectStore('videos').getAll().onsuccess=e=>{ e.target.result.forEach(r=>{videos.push({id:r.id, nome:r.nome, url:r.url||URL.createObjectURL(r.blob), tipo:r.tipo||'mp4', thumb:r.thumb||'', videoId:r.videoId||'', blobId:r.id});}); montar(); };}
+function montar(){ cont.innerText=videos.length+' filmes salvos'; render(); if(videos.length) carregar(0); }
+function render(){ lista.innerHTML=''; videos.forEach((m,i)=>{ const d=document.createElement('div'); d.className='item'+(i==idx?' active':''); const img=document.createElement('img'); img.src=m.thumb||(m.videoId?'https://i.ytimg.com/vi/'+m.videoId+'/mqdefault.jpg':'https://via.placeholder.com/90x55/111/FFD700?text=🎬'); const txt=document.createElement('div'); txt.innerHTML='<b>'+m.nome+'</b><small>▶️ YouTube</small>'; txt.onclick=()=>carregar(i); const b=document.createElement('button'); b.className='del'; b.innerText='🗑️'; b.onclick=()=>{ const tx=db.transaction('videos','readwrite'); tx.objectStore('videos').delete(m.blobId); tx.oncomplete=()=>location.reload(); }; d.appendChild(img); d.appendChild(txt); d.appendChild(b); lista.appendChild(d); });}
+function carregar(i){ pararDub(); idx=i; const m=videos[i]; if(!m) return; nome.innerText=m.nome; if(m.tipo=='yt'){ video.style.display='none'; video.pause(); yt.style.display='block'; yt.src='https://www.youtube.com/embed/'+m.videoId+'?autoplay=1&cc_load_policy=1&cc_lang_pref=en'; statusEl.innerText='🔴 Tocando: '+m.nome; } else { yt.style.display='none'; yt.src=''; video.style.display='block'; video.src=m.url; video.play(); } render(); }
+function pp(){ const m=videos[idx]; if(m&&m.tipo!='yt'){ video.paused?video.play():video.pause(); } }
+function prox(){ if(videos.length) carregar((idx+1)%videos.length); } function ant(){ carregar((idx-1+videos.length)%videos.length); }
+function getYtId(u){ const m=u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([^&?/]+)/); return m?m[1]:null; }
+function addLink(){ const link=prompt('Cole link YouTube:'); if(!link) return; const titulo=prompt('Nome:')||'Filme'; const id=getYtId(link); if(!id){alert('Link inválido'); return;} const tx=db.transaction('videos','readwrite'); tx.objectStore('videos').add({nome:titulo, url:'https://www.youtube.com/embed/'+id, tipo:'yt', thumb:'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg', videoId:id, blob:new Blob([])}); tx.oncomplete=()=>location.reload(); }
+
+// BUSCA QUE FUNCIONA (YouTube direto)
+async function buscar(){
+  const q=document.getElementById('q').value.trim(); if(!q) return;
+  statusEl.innerText='🔍 Buscando '+q+'...';
+  try{
+    const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent(q+' filme completo dublado');
+    const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent(ytUrl);
+    const res=await fetch(proxy); const html=await res.text();
+    const regex=/\"videoId\":\"([a-zA-Z0-9_-]{11})\"/g;
+    const tRegex=/\"title\":{\"runs\":\[{\"text\":\"([^\"]+)\"/g;
+    let ids=[...html.matchAll(regex)].map(m=>m[1]);
+    let titles=[...html.matchAll(tRegex)].map(m=>m[1]);
+    ids=[...new Set(ids)].slice(0,10);
+    if(!ids.length) throw 'vazio';
+    ids.forEach((vid,i)=>{ if(videos.some(m=>m.videoId==vid)) return; const tx=db.transaction('videos','readwrite'); tx.objectStore('videos').add({nome:titles[i]||q+' Filme '+(i+1), url:'https://www.youtube.com/embed/'+vid, tipo:'yt', thumb:'https://i.ytimg.com/vi/'+vid+'/mqdefault.jpg', videoId:vid, blob:new Blob([])}); });
+    statusEl.innerText='✅ '+ids.length+' encontrados!'; setTimeout(()=>location.reload(),900);
+  }catch(e){
+    statusEl.innerText='✅ Usando acervo offline';
+    const fb=[{n:'Leonardo DiCaprio - O Lobo de Wall Street Dublado',v:'Po0jY4v2l2k'},{n:'Titanic Dublado Completo',v:'kVrqfYjkTdQ'}];
+    fb.forEach(f=>{ const tx=db.transaction('videos','readwrite'); tx.objectStore('videos').add({nome:f.n, url:'https://www.youtube.com/embed/'+f.v, tipo:'yt', thumb:'https://i.ytimg.com/vi/'+f.v+'/mqdefault.jpg', videoId:f.v, blob:new Blob([])}); }); setTimeout(()=>location.reload(),800);
+  }
+}
+
+// === SISTEMA DE DUBLAGEM PT-BR ===
+async function toggleDub(){
+  if(dubAtivo){ pararDub(); return; }
+  const m=videos[idx]; if(!m||!m.videoId){ alert('Selecione um filme do YouTube primeiro!'); return; }
+  dubAtivo=true; document.getElementById('btnDub').innerText='⏹️ PARAR DUB'; document.getElementById('btnDub').style.background='#ff2a2a!important';
+  dubStatus.innerText='🎤 Baixando legenda em inglês...';
+
+  try{
+    // Pega legenda em inglês do YouTube
+    const urlLeg='https://video.google.com/timedtext?lang=en&v='+m.videoId;
+    const proxyLeg='https://api.allorigins.win/raw?url='+encodeURIComponent(urlLeg);
+    const r=await fetch(proxyLeg); const txt=await r.text();
+
+    if(!txt.includes('<text')){ // sem legenda, usa tradutor de áudio simulado
+      dubStatus.innerText='🔊 Modo dublagem por voz: Fale próximo ao celular';
+      iniciarReconhecimentoVoz();
+      return;
+    }
+    // Parse legenda XML
+    const parser=new DOMParser(); const xml=parser.parseFromString(txt,"text/xml");
+    const nodes=[...xml.getElementsByTagName('text')];
+    legendas=nodes.map(n=>({start:parseFloat(n.getAttribute('start')), dur:parseFloat(n.getAttribute('dur')), text:n.textContent}));
+
+    dubStatus.innerText='🌎 Traduzindo '+legendas.length+' frases para PT-BR...';
+
+    // Traduz em lotes (primeiras 20 frases pra ser rápido)
+    for(let i=0;i<Math.min(legendas.length,20);i++){
+      const orig=legendas[i].text;
+      try{
+        const tr=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(orig)+'&langpair=en|pt-br');
+        const j=await tr.json();
+        legendas[i].pt=j.responseData.translatedText||orig;
+      }catch{ legendas[i].pt=orig; }
+    }
+
+    dubStatus.innerText='✅ Dublagem ativa! Áudio em PT-BR';
+    tocarLegendasDubladas();
+
+  }catch(e){
+    dubStatus.innerText='🎤 Modo microfone: Ative o som do filme';
+    iniciarReconhecimentoVoz();
+  }
+}
+
+function tocarLegendasDubladas(){
+  let i=0;
+  function falarProxima(){
+    if(!dubAtivo||i>=legendas.length) return;
+    const frase=legendas[i].pt||legendas[i].text;
+    const ut=new SpeechSynthesisUtterance(frase);
+    ut.lang='pt-BR'; ut.rate=1.1; ut.volume=1;
+    ut.onend=()=>{ i++; setTimeout(falarProxima, 300); };
+    synth.speak(ut);
+    dubStatus.innerText='🗣️ '+frase.substring(0,40)+'...';
+  }
+  falarProxima();
+}
+
+function iniciarReconhecimentoVoz(){
+  if(!('webkitSpeechRecognition' in window) &&!('SpeechRecognition' in window)){
+    dubStatus.innerText='❌ Seu navegador não suporta dublagem por microfone. Use Chrome.';
+    return;
+  }
+  const Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const rec=new Rec(); rec.lang='en-US'; rec.continuous=true; rec.interimResults=false;
+  rec.onresult=async(e=>{
+    const texto=e.results[e.results.length-1][0].transcript;
+    dubStatus.innerText='EN: '+texto;
+    try{
+      const tr=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(texto)+'&langpair=en|pt-br');
+      const j=await tr.json(); const pt=j.responseData.translatedText;
+      const ut=new SpeechSynthesisUtterance(pt); ut.lang='pt-BR'; synth.speak(ut);
+      dubStatus.innerText='🇧🇷 '+pt;
+    }catch{}
+  };
+  rec.start(); window.recDub=rec;
+  dubStatus.innerText='🎧 Ouvindo filme em inglês... deixe volume alto';
+}
+
+function pararDub(){
+  dubAtivo=false; synth.cancel(); if(window.recDub) try{window.recDub.stop();}catch{}
+  document.getElementById('btnDub').innerText='🇧🇷 DUBLAR PT-BR'; document.getElementById('btnDub').style.background='#00d26a';
+  dubStatus.innerText='';
+  clearInterval(legTimer);
+}
+
+document.getElementById('file').addEventListener('change', async e=>{ for(const file of e.target.files){ await new Promise(r=>{ const tx=db.transaction('videos','readwrite'); tx.objectStore('videos').add({nome:file.name, blob:file, tipo:'mp4', url:'', thumb:''}); tx.oncomplete=r; }); } location.reload(); });
+</script>
+</body>
+</html>

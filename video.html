@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V86 Player TV</title>
+<style>
+body{background:#000;color:#fff;font-family:Arial;text-align:center;margin:0;padding:10px}
+.top{background:#111;padding:12px;border-radius:12px;margin-bottom:10px}
+.top a{color:#FFD700;text-decoration:none;font-weight:bold}
+.busca{display:flex;gap:8px;margin-bottom:10px}
+.busca input{flex:1;padding:12px;border-radius:10px;border:2px solid #FFD700;background:#111;color:#fff}
+.card{border:2px solid #FFD700;border-radius:15px;padding:10px;background:#111}
+#nome{color:#FFD700;font-weight:bold;margin:10px 0;font-size:18px}
+.btns{display:flex;justify-content:center;gap:10px;margin:10px 0}
+.btns button{padding:12px 20px;border-radius:10px;border:none;background:#FFD700;font-weight:bold}
+.lista{text-align:left;background:#1a1a1a;border-radius:10px;padding:8px;max-height:300px;overflow:auto}
+.item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;margin-bottom:5px;background:#222;cursor:pointer}
+.item.ativo{background:#FFD700;color:#000}
+.green{background:#00d26a;color:#fff;border:none;padding:14px;border-radius:12px;font-weight:bold;width:100%;margin-top:8px}
+#btnTV{position:fixed;top:10px;right:10px;z-index:9999;background:#FF0000;color:#fff;border:none;padding:14px 20px;border-radius:50px;font-weight:900;box-shadow:0 4px 15px #000}
+</style></head>
+<body>
+
+<button id="btnTV">📺 JOGAR NA TV</button>
+
+<div class="top"><a href="index.html">🎵 V86 - Player Filmes</a></div>
+<div class="busca"><input type="text" id="q" placeholder="Buscar filme..."><button onclick="buscar()" style="background:#FFD700;border:none;border-radius:10px;padding:0 15px;font-weight:bold">🔍</button></div>
+<div class="card">
+<video id="video" controls style="display:block;width:100%;border-radius:12px;background:#000"></video>
+<div id="nome">🔴 FILME COMPLETO - Toque em um filme abaixo</div>
+<div class="btns"><button onclick="ant()">⏮️</button><button onclick="pp()">⏯️</button><button onclick="prox()">⏭️</button></div>
+<div class="lista" id="lista"></div>
+</div>
+<button class="green" onclick="addLink()">➕ Adicionar Link</button>
+<button class="green" style="background:#FFD700;color:#000" onclick="document.getElementById('file').click()">📁 Carregar Arquivo</button>
+<input type="file" id="file" style="display:none" accept=".txt,.json">
+
+<script>
+// --- CAST MÁGICO ---
+document.getElementById('btnTV').onclick=async()=>{
+  try{
+    if('PresentationRequest' in window){
+      const req=new PresentationRequest([location.href]);
+      await req.start();
+      document.getElementById('btnTV').innerText='🔴 NA TV';
+      document.getElementById('btnTV').style.background='#00c853';
+    }else alert('Abra no Chrome!');
+  }catch(e){alert('Ligue o AirScreen na TV Box e mesma Wi-Fi!');}
+};
+
+// --- SEU PLAYER ---
+let videos=[], idx=0; const video=document.getElementById('video'), nomeEl=document.getElementById('nome'), lista=document.getElementById('lista'), cont=document.getElementById('q');
+let db; const req=indexedDB.open('V86DB_VID',2);
+req.onupgradeneeded=e=>{db=e.target.result; if(!db.objectStoreNames.contains('filmes')) db.createObjectStore('filmes',{keyPath:'id',autoIncrement:true});};
+req.onsuccess=e=>{db=e.target.result; carregarLocal();};
+function carregarLocal(){ db.transaction('filmes').objectStore('filmes').getAll().onsuccess=e=>{videos=e.target.result; render(); if(videos.length) carregar(0);}; }
+function montar(){ return videos; }
+function render(){ lista.innerHTML=''; videos.forEach((m,i)=>{const

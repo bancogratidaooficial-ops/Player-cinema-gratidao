@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V86 AirScreen</title>
+<style>
+body{background:#000;color:#fff;font-family:Arial;text-align:center;padding:10px}
+h1{color:#FFD700;font-size:18px;margin:10px}
+video{width:100%;height:250px;background:#000;border-radius:12px;border:2px solid #FFD700}
+.btn{width:100%;padding:16px;border-radius:12px;border:none;font-weight:900;margin-top:8px;font-size:15px}
+.tv{background:#e50914;color:#fff}
+.add{background:#FFD700;color:#000}
+.item{display:flex;gap:8px;padding:10px;background:#151515;margin:6px 0;border-radius:10px;align-items:center;text-align:left}
+.item video{width:70px;height:50px;border:none}
+.item b{font-size:12px}
+.topo{display:flex;gap:6px;margin-bottom:10px}
+.topo button{flex:1;padding:10px;background:#222;color:#FFD700;border:2px solid #FFD700;border-radius:10px;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>📁 V86 FILMES - AirScreen</h1>
+
+<div class="topo">
+<button onclick="history.back()">◀️ VOLTAR</button>
+<button onclick="document.getElementById('file').click()">➕ ADD DO CELULAR</button>
+</div>
+
+<video id="player" controls playsinline></video>
+<div id="nome" style="color:#FFD700;margin:8px;font-weight:bold">Adicione um vídeo do celular</div>
+
+<button class="btn tv" onclick="mandarAirScreen()">📺 MANDAR PRA TV COM AIRSCREEN</button>
+<button class="btn add" onclick="document.getElementById('file').click()">📁 ADICIONAR FILME / VÍDEO</button>
+
+<input type="file" id="file" accept="video/*" multiple style="display:none">
+<div id="lista"></div>
+
+<script>
+let filmes=[], idx=0;
+let player=document.getElementById('player'), nome=document.getElementById('nome'), lista=document.getElementById('lista');
+let db; let req=indexedDB.open('V86_AIR',2);
+req.onupgradeneeded=e=>{ e.target.result.createObjectStore('filmes',{keyPath:'id',autoIncrement:true}); };
+req.onsuccess=e=>{ db=e.target.result; carregar(); };
+function carregar(){
+ let tx=db.transaction('filmes','readonly').objectStore('filmes').getAll();
+ tx.onsuccess=e=>{ filmes=e.target.result; montar(); if(filmes.length) tocar(0); };
+}
+document.getElementById('file').onchange=e=>{
+ for(let f of e.target.files){
+  let tx=db.transaction('filmes','readwrite');
+  tx.objectStore('filmes').add({nome:f.name, blob:f, pasta:'todos'});
+ }
+ setTimeout(()=>carregar(),500);
+};
+function montar(){
+ lista.innerHTML='';
+ filmes.forEach((f,i)=>{
+  let d=document.createElement('div'); d.className='item';
+  let url=URL.createObjectURL(f.blob);
+  d.innerHTML=`<video src="${url}" muted></video><div style="flex:1"><b>${f.nome}</b><br><small>📺 Clique pra tocar</small></div><button onclick="apagar(${f.id})" style="background:#f22;color:#fff;border:none;width:32px;height:32px;border-radius:50%">🗑️</button>`;
+  d.onclick=()=>tocar(i);
+  lista.appendChild(d);
+ });
+}
+function tocar(i){
+ idx=i; let f=filmes[i]; let url=URL.createObjectURL(f.blob);
+ player.src=url; nome.innerText=f.nome; player.play();
+ // Mostra se a TV está disponível
+ checarTV();
+}
+function apagar(id){
+ if(!confirm('Apagar?')) return;
+ let tx=db.transaction('filmes','readwrite'); tx.objectStore('filmes').delete(id); tx.oncomplete=()=>carregar();
+}
+
+// ===== FUNÇÃO QUE FUNCIONA COM AIRSCREEN =====
+function checarTV(){
+ // Verifica se AirScreen está na rede
+ if(player.remote){
+  player.remote.watchAvailability((ok)=>{
+   if(ok){ nome.innerText+=' - 📺 TV encontrada!'; }
+  }).catch(()=>{});
+ }
+}
+
+function mandarAirScreen(){
+ let f=filmes[idx];
+ if(!f){ alert('Adicione um vídeo primeiro e toque nele'); return; }
+
+ // METODO 1 - O QUE O AIRSCREEN ENTENDE - Google Cast nativo
+ if(player.remote){
+   player.remote.prompt().then(()=>{
+     alert('Conectando na AS-TVBOX...');
+   }).catch(err=>{
+     // Se falhar, tenta metodo 2
+     metodo2();
+   });
+ } else {
+   metodo2();
+ }
+}
+
+function metodo2(){
+ // METODO 2 - Força o Chrome a mostrar o botão de CAST
+ alert('📺 PASSO A PASSO PRA AIRSCREEN:\n\n1- Deixa a TV no AirScreen (tela do QR Code)\n2- No seu celular, toca o vídeo\n3- No próprio vídeo, no canto inferior direito, aparece 3 pontinhos ⋮\n4- Clica em TRANSMITIR ou CAST\n5- Escolhe AS-TVBOX\n\nSe não aparecer os 3 pontinhos, aperta e segura no vídeo.');
+ // Dica extra: abre o menu de transmissão do Android
+ if(navigator.share){
+   let url=URL.createObjectURL(filmes[idx].blob);
+   // Não dá pra compartilhar blob pro AirScreen, mas mostra instrução
+ }
+}
+</script>
+</body>
+</html>

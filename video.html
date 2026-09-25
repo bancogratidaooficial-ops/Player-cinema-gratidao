@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V86 LEVE</title>
+<style>
+body{background:#000;color:#fff;font-family:Arial;text-align:center;padding:10px}
+h2{color:#FFD700;margin:10px}
+iframe{width:100%;height:220px;border:none;border-radius:12px;background:#000}
+.btn{width:100%;padding:16px;border-radius:12px;border:none;font-weight:900;margin-top:10px;font-size:16px}
+.tv{background:#e50914;color:#fff}
+.add{background:#FFD700;color:#000}
+.lista{margin-top:10px;text-align:left}
+.item{padding:10px;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center}
+.item img{width:70px;border-radius:6px}
+</style>
+</head>
+<body>
+<h2>🎬 V86 PLAY LEVE</h2>
+
+<iframe id="player" src="https://www.youtube.com/embed/0Rvn71r_Oic?enablejsapi=1" allowfullscreen allow="autoplay"></iframe>
+
+<div id="nome" style="margin:8px;color:#FFD700;font-weight:bold">Piratas do Vale do Silício</div>
+
+<button class="btn tv" onclick="tv()">📺 VER NA TV BOX</button>
+<button class="btn add" onclick="add()">➕ ADD FILME POR LINK</button>
+
+<div class="lista" id="lista"></div>
+
+<script>
+let filmes = [
+ {nome:'Piratas do Vale do Silício', id:'0Rvn71r_Oic'},
+ {nome:'De Volta para o Futuro', id:'qz8pK2fihRw'}
+];
+
+let atual = filmes[0].id;
+const player = document.getElementById('player');
+const nomeEl = document.getElementById('nome');
+const listaEl = document.getElementById('lista');
+
+function montar(){
+ listaEl.innerHTML='';
+ filmes.forEach(f=>{
+  let d=document.createElement('div'); d.className='item';
+  d.innerHTML=`<img src="https://i.ytimg.com/vi/${f.id}/mqdefault.jpg"><div><b>${f.nome}</b><br><small>${f.id}</small></div>`;
+  d.onclick=()=>tocar(f);
+  listaEl.appendChild(d);
+ });
+}
+function tocar(f){
+ atual=f.id;
+ nomeEl.innerText=f.nome;
+ player.src=`https://www.youtube.com/embed/${f.id}?autoplay=1`;
+}
+function tv(){
+ let link=`https://www.youtube.com/watch?v=${atual}`;
+ // Isso abre o menu nativo do celular, que já mostra sua TV Box AS-TVBOX
+ if(navigator.share){
+   navigator.share({title:nomeEl.innerText, url:link});
+ } else {
+   prompt('Copie e cole no YouTube da TV:', link);
+ }
+}
+function add(){
+ let l=prompt('Cole o link do YouTube:');
+ if(!l) return;
+ let id=l.match(/[a-zA-Z0-9_-]{11}/);
+ if(!id){ alert('Link inválido'); return; }
+ let nome=prompt('Nome do filme:')||'Filme';
+ filmes.push({nome:nome, id:id[0]});
+ montar();
+}
+
+montar();
+
+// DICA: O icone de CAST do próprio YouTube aparece DENTRO do video
+// quando seu celular e a TV Box AS-TVBOX estão na mesma Wi-Fi
+</script>
+</body>
+</html>
